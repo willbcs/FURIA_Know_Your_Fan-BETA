@@ -1,19 +1,22 @@
-🚀 FURIA - KNOW YOUR FAN - README
+markdown
+🚀 FURIA - KNOW YOUR FAN (BETA) - README
 🇧🇷 Português
+
 🤖 Sobre o Projeto
-Sistema completo de cadastro para fãs da FURIA com:
+Versão otimizada do sistema de cadastro para fãs da FURIA, derivada do projeto original [FURIA_Know_your_fan](https://github.com/seu-usuario/FURIA_Know_your_fan), com melhorias de performance para deploy em ambientes com recursos limitados.
 
-📝 Formulário inteligente com validações
+Principais funcionalidades:
 
-📄 Upload e leitura automática de documentos (RG/CNH)
-
-🔗 Conexão com Discord, Google e Steam
-
-✉️ Envio de e-mails personalizados via SendGrid
-
+📝 Formulário inteligente com validações robustas
+🔗 Integração com Discord, Google e Steam
+✉️ Sistema de e-mails personalizados via SendGrid
 🗄️ Armazenamento seguro no MongoDB
+⚡ Versão otimizada para deploys gratuitos
 
-Desenvolvido como projeto do Challenge #2: Know Your Fan para a vaga de Assistente de Engenharia de Software.
+🔴 Alterações em relação à versão original:
+- Remoção do módulo EasyOCR para processamento de documentos (visando reduzir consumo de memória)
+- Foco nas integrações sociais e experiência do usuário
+- Melhorias no gerenciamento de sessões
 
 📦 Dependências
 Crie e ative um ambiente virtual (recomendado):
@@ -26,61 +29,75 @@ pip install -r requirements.txt
 
 ⚙️ Configuração
 Crie um arquivo .env na raiz do projeto com:
-MONGO_URI = "sua_string_de_conexao"
-MONGO_DB_NAME = "nome_banco"
-FLASK_SECRET_KEY = 'sua_chave_secreta'
-CLIENT_ID = "123456789123456789"
-CLIENT_SECRET = "Laba3pTiukWlmkos-Ri6ATAEuEqjTRLQ"
-GOOGLE_CLIENT_ID = "123456123456123456123456"
-GOOGLE_CLIENT_SECRET = "sua_chave_secreta"
-STEAM_API_KEY = "sua_chave_steam"
-SENDER_EMAIL = endereco_de_email_configurado #(Sendgrid)  
-SENDER_NAME = nome_do_sender_configurado #(Sendgrid)
-SENDGRID_API_KEY = "sua_chave_sendgrid"
+MONGO_URI="sua_string_de_conexao"
+MONGO_DB_NAME="nome_banco"
+FLASK_SECRET_KEY='sua_chave_secreta'
+CLIENT_ID="123456789123456789"
+CLIENT_SECRET="Laba3pTiukWlmkos-Ri6ATAEuEqjTRLQ"
+GOOGLE_CLIENT_ID="123456123456123456123456"
+GOOGLE_CLIENT_SECRET="sua_chave_secreta"
+STEAM_API_KEY="sua_chave_steam"
+SENDER_EMAIL="endereco_de_email_configurado"
+SENDER_NAME="nome_do_sender_configurado"
+SENDGRID_API_KEY="sua_chave_sendgrid"
 
-Integrações OAuth (obrigatórias):
-Crie apps nos respectivos sites:
+🔌 Integrações OAuth (obrigatórias):
+
 Discord Developer Portal
+
 Google Cloud Console
+
 Steam Developer
 
 🚀 Como Executar
-Inicie o servidor Flask:
+
 python app.py
-O sistema estará disponível em: http://127.0.0.1:5000
-Para dispositivos móveis na mesma rede estará disponível em http://192.168.15.7:5000
+Acesse o sistema em:
+
+Local: http://127.0.0.1:5000
+
+Rede local: http://192.168.15.7:5000
 
 📬 Fluxo do Sistema
+
 1. Cadastro básico → 2. Upload de documento → 3. Conexão social → 4. Links de interesse → 5. Confirmação e envio automático de e-mail
 
 📧 Envio de E-mails
+
 Disparado automaticamente ao final do cadastro
-Usa templates personalizados baseados nos interesses
+
+Templates personalizados baseados nos interesses do fã
+
 Requer chave API do SendGrid válida
 
+📌 Nota sobre Documentos:
+A versão BETA mantém o upload de documentos mas não realiza processamento automático do conteúdo, focando na experiência essencial do cadastro.
+
 📬 Contato
-Em caso de dúvidas:
+Para dúvidas ou sugestões:
 📧 [willbc.silva@gmail.com]
 
 👨‍💻 Desenvolvido por:
 [William Bruno Carlos Silva]
 
-
 🇺🇸 English
 🤖 About the Project
-Complete fan registration system for FURIA featuring:
+Optimized version of the FURIA fan registration system, derived from the original FURIA_Know_your_fan project, with performance improvements for resource-limited deployments.
 
-📝 Smart form with validations
-
-📄 Automatic document upload and processing (ID/Driver's License)
-
+Key features:
+📝 Smart form with robust validations
 🔗 Discord, Google, and Steam integration
-
-✉️ Personalized email delivery via SendGrid
-
+✉️ Personalized email system via SendGrid
 🗄️ Secure MongoDB storage
+⚡ Performance-optimized for free-tier deploys
 
-Developed as part of Challenge #2: Know Your Fan for the Software Engineering Assistant position.
+🔴 Changes from original version:
+
+Removed EasyOCR document processing module (to reduce memory usage)
+
+Focus on social integrations and user experience
+
+Improved session management
 
 📦 Dependencies
 Create and activate a virtual environment (recommended):
