@@ -15,14 +15,15 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 import base64
 from pathlib import Path
+from flask_session import Session
 
 app = Flask(__name__)
-app.config.update(
-    SESSION_COOKIE_SECURE=True,  # obrigatório em produção com HTTPS
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_HTTPONLY=True
-)
-app.permanent_session_lifetime = timedelta(days=31)
+
+# Configurações de sessão
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=31)
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
@@ -34,7 +35,14 @@ if not MONGO_URI or not MONGO_DB_NAME:
     raise ValueError("As variáveis MONGO_URI e MONGO_DB_NAME devem ser configuradas")
 
 client = MongoClient(MONGO_URI)
-db = client[str(MONGO_DB_NAME)]  
+db = client[str(MONGO_DB_NAME)]
+
+# Configuração do Flask-Session com MongoDB
+app.config['SESSION_TYPE'] = 'mongodb'
+app.config['SESSION_MONGODB'] = client
+app.config['SESSION_MONGODB_DB'] = MONGO_DB_NAME
+app.config['SESSION_MONGODB_COLLECT'] = 'sessions'
+Session(app)
 
 DISCORD_CLIENT_ID = os.getenv('CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.getenv('CLIENT_SECRET')
@@ -78,7 +86,6 @@ def allowed_file(filename):
 def get_recommendations(fan_data):
     """Gera recomendações personalizadas baseadas nos interesses do fã"""
     recommendations = {
-        # eSports
         'cs': [
             {'title': 'Notícias - FURIA CS', 'url': 'https://themove.gg/esports/cs'},
             {'title': 'Próximos Torneios - CS', 'url': 'https://draft5.gg/equipe/330-FURIA/campeonatos'}
@@ -99,7 +106,6 @@ def get_recommendations(fan_data):
             {'title': 'Notícias - FURIA Rocket League', 'url': 'https://themove.gg/esports/rocket-league'},
             {'title': 'Site Oficial - Rocket League', 'url': 'https://www.rocketleague.com/pt-br'}
         ],
-        # Produtos
         'roupas': [
             {'title': 'Produtos licenciados FURIA', 'url': 'https://www.furia.gg/produtos'},
             {'title': 'Outlet Oficial', 'url': 'https://www.furia.gg/outlet'}
@@ -108,7 +114,6 @@ def get_recommendations(fan_data):
             {'title': 'Coleção FURIA', 'url': 'https://www.furia.gg/colecao'},
             {'title': 'Acessórios Exclusivos', 'url': 'https://www.furia.gg/acessorios'}
         ],
-        # Conteúdo
         'streaming': [
             {'title': 'FURIA na Twitch', 'url': 'https://www.twitch.tv/furiatv'}           
         ]
@@ -116,7 +121,6 @@ def get_recommendations(fan_data):
     
     selected_recommendations = []
     
-    # 1. Análise de eSports (jogos)
     for esport in fan_data.get('esports', []):
         esport_lower = esport.lower()
         
@@ -131,7 +135,6 @@ def get_recommendations(fan_data):
         elif any(term in esport_lower for term in ['rocket', 'rl ', 'rocket league']):
             selected_recommendations.extend(recommendations['rocket'])
     
-    # 2. Análise de compras (produtos físicos)
     for compra in fan_data.get('compras', []):
         compra_lower = compra.lower()
         
@@ -140,13 +143,11 @@ def get_recommendations(fan_data):
         elif any(term in compra_lower for term in ['acessório', 'boné', 'mochila', 'colecionável']):
             selected_recommendations.extend(recommendations['acessorios'])
     
-    # 3. Análise de atividades (hábitos)
     for atividade in fan_data.get('atividades', []):
         atividade_lower = atividade.lower()
         if any(term in atividade_lower for term in ['assistir', 'stream', 'live']):
             selected_recommendations.extend(recommendations['streaming'])
     
-    # Recomendações padrão (fallback)
     if len(selected_recommendations) < 3:
         selected_recommendations.extend([
             {'title': 'Loja Oficial FURIA', 'url': 'https://www.furia.gg/loja'},
@@ -154,7 +155,6 @@ def get_recommendations(fan_data):
             {'title': 'Blog de Esports', 'url': 'https://www.furia.gg/news'}
         ])
     
-    # Remove duplicatas mantendo a ordem
     seen_urls = set()
     final_recommendations = []
     for rec in selected_recommendations:
@@ -167,17 +167,14 @@ def get_recommendations(fan_data):
 def send_welcome_email(email, fan_data):
     """Envia e-mail de boas-vindas com recomendações personalizadas"""
     try:
-        # Configurações básicas
         recommendations = get_recommendations(fan_data)
         first_name = fan_data['nome'].split()[0]
         esports_list = ', '.join(fan_data['esports'])
         
-        # Lê a imagem da logo
         logo_path = Path('static') / 'furia-logo.png'
         with open(logo_path, 'rb') as f:
             logo_data = f.read()
         
-        # Renderiza o template HTML
         html_content = render_template(
             'email.html',
             first_name=first_name,
@@ -186,7 +183,6 @@ def send_welcome_email(email, fan_data):
             current_year=datetime.now().year
         )
         
-        # Cria a mensagem
         message = Mail(
             from_email=os.getenv('SENDER_EMAIL'),
             to_emails=email,
@@ -194,7 +190,6 @@ def send_welcome_email(email, fan_data):
             html_content=html_content
         )
         
-        # Adiciona anexo da logo
         encoded_logo = base64.b64encode(logo_data).decode()
         attached_logo = Attachment(
             FileContent(encoded_logo),
@@ -205,7 +200,6 @@ def send_welcome_email(email, fan_data):
         )
         message.attachment = attached_logo
         
-        # Envia o e-mail
         sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
         response = sg.send(message)
         
@@ -288,16 +282,20 @@ def index():
         }
         
         return redirect(url_for('upload'))
-    
-    session.permanent = True
+        
     return render_template('index.html')
+
+@app.route('/clear-session')
+def clear_session():
+    session.clear()
+    flash('Sessão limpa com sucesso. Você pode começar um novo cadastro.', 'success')
+    return redirect(url_for('index'))
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    # Verificar se há dados na sessão
     if 'fan_data' not in session:
         flash('Sessão expirada. Por favor, preencha o formulário novamente.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('clear_session'))
     
     if request.method == 'POST':
         file = request.files.get('documento')
@@ -306,10 +304,8 @@ def upload():
             flash('Por favor, anexe um arquivo.', 'error')
             return redirect(url_for('upload'))
         
-        # Aqui você pode processar o arquivo se necessário
-        # Por enquanto, apenas marcamos que o upload foi feito
         session['documento_uploaded'] = True
-        session.modified = True  # Força a atualização da sessão
+        session.modified = True
         
         flash('Arquivo recebido. Continuando para a próxima etapa.', 'success')
         return redirect(url_for('social'))
@@ -318,18 +314,15 @@ def upload():
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
-    # Verificação robusta da sessão
     if 'fan_data' not in session:
         flash('Por favor, complete as etapas anteriores primeiro.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('clear_session'))
 
     if request.method == 'POST':
-        # Verifica se pelo menos uma conta foi vinculada
         if not any([session.get('discord_data'), session.get('google_data'), session.get('steam_data')]):
             flash('Você deve vincular pelo menos uma conta (Discord, Google ou Steam) para continuar.', 'error')
             return redirect(url_for('social'))
 
-        # Processa as redes sociais
         twitter = request.form.get('twitter', '').strip()
         instagram = request.form.get('instagram', '').strip()
         twitch = request.form.get('twitch', '').strip()
@@ -342,7 +335,6 @@ def social():
             'youtube': f'https://youtube.com/{youtube}' if youtube else ''
         }
 
-        # Validação das URLs (opcional)
         for platform, url in social_data.items():
             if url and platform != 'twitter':
                 try:
@@ -354,16 +346,14 @@ def social():
                     flash(f'Erro ao verificar {platform.capitalize()}. Verifique o link.', 'error')
                     return redirect(url_for('social'))
 
-        # Armazena os dados e força a persistência da sessão
         session['social_data'] = social_data
-        session.modified = True  # Importante para garantir que a sessão será salva
+        session.modified = True
         
-        print(f"Dados sociais salvos: {social_data}")  # Log para debug
-        print(f"Estado completo da sessão: {dict(session)}")  # Log para debug
+        print(f"Dados sociais salvos: {social_data}")
+        print(f"Estado completo da sessão: {dict(session)}")
         
-        return redirect(url_for('links'))  # Redireciona para a próxima página CORRETAMENTE
+        return redirect(url_for('links'))
 
-    # Se for GET, mostra o template normalmente
     return render_template('social.html')
 
 def validar_link_esports(url):
@@ -381,7 +371,7 @@ def validar_link_esports(url):
 def links():
     if 'fan_data' not in session or 'social_data' not in session:
         flash('Sessão expirada. Por favor, preencha novamente.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('clear_session'))
 
     if request.method == 'POST':
         links = request.form.getlist('links')
@@ -403,11 +393,10 @@ def links():
 
 @app.route('/success')
 def success():
-    if 'fan_data' not in session or 'documento' not in session or 'social_data' not in session or 'links_data' not in session:
+    if 'fan_data' not in session or 'documento_uploaded' not in session or 'social_data' not in session or 'links_data' not in session:
         flash('Sessão expirada. Por favor, preencha novamente.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('clear_session'))
 
-    # Processar dados adicionais do Google se existirem
     google_extras = {}
     if 'google_data' in session and 'access_token' in session['google_data'].get('tokens', {}):
         try:
@@ -445,7 +434,6 @@ def success():
         except Exception as e:
             print(f"Erro ao obter dados extras do Google: {str(e)}")
 
-    # Preparar dados para salvar no MongoDB
     fan_data = {
         'nome': session['fan_data']['nome'],
         'cpf': session['fan_data']['cpf'],
@@ -456,7 +444,6 @@ def success():
         'interesses': session['fan_data']['interesses'],
         'atividades': session['fan_data']['atividades'],
         'compras': session['fan_data']['compras'],
-        #'documento_info': session['documento'],  # Apenas metadados, não o arquivo
         'redes_sociais': session['social_data'],
         'links_esports': session['links_data'],
         'cadastro_em': datetime.now().isoformat(),
@@ -468,7 +455,6 @@ def success():
         'steam_data': session.get('steam_data', {})
     }
 
-    # Envia e-mails para todos os e-mails únicos encontrados
     emails_to_send = set()
     
     if fan_data['email']:
