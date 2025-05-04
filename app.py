@@ -312,7 +312,7 @@ def upload():
 @app.route('/social', methods=['GET', 'POST'])
 def social():
     # Verificação robusta da sessão
-    if 'fan_data' not in session or 'documento_uploaded' not in session:
+    if 'fan_data' not in session:
         flash('Por favor, complete as etapas anteriores primeiro.', 'error')
         return redirect(url_for('index'))
 
