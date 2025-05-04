@@ -14,7 +14,6 @@ import urllib.parse
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 import base64
-from config import MONGO_URI, MONGO_DB_NAME
 from pathlib import Path
 
 app = Flask(__name__)
