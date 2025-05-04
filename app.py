@@ -217,51 +217,19 @@ def index():
         
     return render_template('index.html')
 
-@app.route('/upload', methods=['GET', 'POST'])
+app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    if 'fan_data' not in session:
-        flash('Sessão expirada. Por favor, preencha novamente.', 'error')
-        return redirect(url_for('index'))
-
     if request.method == 'GET':
         return render_template('upload.html')
     
-    if 'documento' not in request.files:
-        flash('Nenhum arquivo enviado', 'error')
+    file = request.files.get('documento')
+
+    if not file or file.filename.strip() == '':
+        flash('Por favor, anexe um arquivo.', 'error')
         return redirect(url_for('upload'))
     
-    file = request.files['documento']
-    
-    if file.filename == '':
-        flash('Nenhum arquivo selecionado', 'error')
-        return redirect(url_for('upload'))
-    
-    if not allowed_file(file.filename):
-        flash('Tipo de arquivo não permitido. Envie PNG, JPG, JPEG ou PDF.', 'error')
-        return redirect(url_for('upload'))
-    
-    try:
-        # Lê o conteúdo do arquivo primeiro
-        file_content = file.read()
-        
-        # Armazena apenas metadados do documento
-        session['documento'] = {
-            'nome_arquivo': secure_filename(file.filename),
-            'tipo': file.content_type,
-            'tamanho': len(file_content),
-            'data_upload': datetime.now().isoformat()
-        }
-        
-        # Garante que a sessão seja salva
-        session.modified = True
-        
-        flash('Documento recebido com sucesso!', 'success')
-        return redirect(url_for('social'))
-    
-    except Exception as e:
-        print(f"Erro no upload: {str(e)}")
-        flash('Ocorreu um erro ao processar seu documento. Tente novamente.', 'error')
-        return redirect(url_for('upload'))
+    flash('Arquivo recebido. Continuando para a próxima etapa.', 'success')
+    return redirect(url_for('social'))
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
