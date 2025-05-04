@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from pymongo import MongoClient
 import os
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 import requests
 from googleapiclient.discovery import build
@@ -17,8 +17,14 @@ import base64
 from pathlib import Path
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.secret_key = os.getenv('FLASK_SECRET_KEY')
+app.config.update(
+    SECRET_KEY=os.getenv('FLASK_SECRET_KEY'),
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=1),  # Sessão dura 1 hora
+    SESSION_REFRESH_EACH_REQUEST=True
+)
 
 # MongoDB
 MONGO_URI = os.getenv('MONGO_URI')
@@ -211,13 +217,18 @@ def send_welcome_email(email, fan_data):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    # Configuração de sessão mais robusta
+    session.permanent = True  # Faz a sessão persistir por mais tempo
+    
     if request.method == 'POST':
+        # Coleta e limpeza dos dados do formulário
         nome = request.form.get('nome', '').strip()
         cpf = re.sub(r'\D', '', request.form.get('cpf', ''))
         endereco = request.form.get('endereco', '').strip()
         email = request.form.get('email', '').strip().lower()
         data_nascimento = request.form.get('data_nascimento', '')
         
+        # Validações (mantidas as originais)
         partes_nome = [parte for parte in nome.split() if len(parte) >= 2]
         if len(partes_nome) < 2:
             flash('Por favor, insira seu nome completo (pelo menos nome e sobrenome).', 'error')
@@ -245,6 +256,7 @@ def index():
             flash('Data de nascimento inválida.', 'error')
             return redirect(url_for('index'))
             
+        # Processamento dos campos múltiplos
         esports = request.form.getlist('esports')
         interesses = request.form.getlist('interesses')
         atividades = request.form.getlist('atividades')
@@ -254,6 +266,7 @@ def index():
             flash('Selecione pelo menos um eSport que você acompanha.', 'error')
             return redirect(url_for('index'))
             
+        # Campos "outros" adicionais
         outros_esports = request.form.get('outros_esports', '').strip()
         outros_interesses = request.form.get('outros_interesses', '').strip()
         outros_atividades = request.form.get('outros_atividades', '').strip()
@@ -268,6 +281,7 @@ def index():
         if outros_compras:
             compras.append(outros_compras)
             
+        # Armazenamento na sessão com garantia de persistência
         session['fan_data'] = {
             'nome': nome,
             'cpf': cpf,
@@ -280,6 +294,10 @@ def index():
             'compras': compras,
             'timestamp': datetime.now().isoformat()
         }
+        
+        # Força a gravação da sessão antes do redirecionamento
+        session.modified = True
+        print(f"Sessão após form: {dict(session)}")  # Log para debug
         
         return redirect(url_for('upload'))
         
