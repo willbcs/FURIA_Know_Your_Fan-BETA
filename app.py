@@ -212,7 +212,75 @@ def send_welcome_email(email, fan_data):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        # ... (mantenha o mesmo código do index)
+        nome = request.form.get('nome', '').strip()
+        cpf = re.sub(r'\D', '', request.form.get('cpf', ''))
+        endereco = request.form.get('endereco', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        data_nascimento = request.form.get('data_nascimento', '')
+        
+        partes_nome = [parte for parte in nome.split() if len(parte) >= 2]
+        if len(partes_nome) < 2:
+            flash('Por favor, insira seu nome completo (pelo menos nome e sobrenome).', 'error')
+            return redirect(url_for('index'))
+            
+        if len(cpf) != 11 or not cpf.isdigit():
+            flash('CPF deve conter 11 dígitos numéricos.', 'error')
+            return redirect(url_for('index'))
+            
+        EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        if not EMAIL_REGEX.fullmatch(email):
+            flash('Por favor, insira um e-mail válido (exemplo: usuario@provedor.com).', 'error')
+            return redirect(url_for('index'))
+            
+        try:
+            data_nasc = datetime.strptime(data_nascimento, '%Y-%m-%d').date()
+            idade = (date.today() - data_nasc).days // 365
+            if idade < 12:
+                flash('Você deve ter pelo menos 12 anos para se cadastrar.', 'error')
+                return redirect(url_for('index'))
+            elif idade > 120:
+                flash('Data de nascimento inválida.', 'error')
+                return redirect(url_for('index'))
+        except (ValueError, TypeError):
+            flash('Data de nascimento inválida.', 'error')
+            return redirect(url_for('index'))
+            
+        esports = request.form.getlist('esports')
+        interesses = request.form.getlist('interesses')
+        atividades = request.form.getlist('atividades')
+        compras = request.form.getlist('compras')
+        
+        if not esports:
+            flash('Selecione pelo menos um eSport que você acompanha.', 'error')
+            return redirect(url_for('index'))
+            
+        outros_esports = request.form.get('outros_esports', '').strip()
+        outros_interesses = request.form.get('outros_interesses', '').strip()
+        outros_atividades = request.form.get('outros_atividades', '').strip()
+        outros_compras = request.form.get('outros_compras', '').strip()
+        
+        if outros_esports:
+            esports.append(outros_esports)
+        if outros_interesses:
+            interesses.append(outros_interesses)
+        if outros_atividades:
+            atividades.append(outros_atividades)
+        if outros_compras:
+            compras.append(outros_compras)
+            
+        session['fan_data'] = {
+            'nome': nome,
+            'cpf': cpf,
+            'email': email,
+            'endereco': endereco,
+            'data_nascimento': data_nascimento,
+            'esports': esports,
+            'interesses': interesses,
+            'atividades': atividades,
+            'compras': compras,
+            'timestamp': datetime.now().isoformat()
+        }
+        
         return redirect(url_for('upload'))
         
     return render_template('index.html')
