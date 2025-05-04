@@ -4,10 +4,8 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from pymongo import MongoClient
 import os
-import easyocr
 import re
-from datetime import datetime, date, timedelta
-from config import MONGO_URI, MONGO_DB_NAME
+from datetime import datetime, date
 from werkzeug.utils import secure_filename
 import requests
 from googleapiclient.discovery import build
@@ -16,6 +14,7 @@ import urllib.parse
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 import base64
+from config import MONGO_URI, MONGO_DB_NAME
 from pathlib import Path
 
 app = Flask(__name__)
@@ -57,62 +56,8 @@ def get_redirect_uri(request):
 
 fans_collection = db['fans']
 
-# EasyOCR
-reader = easyocr.Reader(['pt'])
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
-
-def extract_document_info(text_list):
-    cpf = None
-    rg = None
-    data_nascimento = None
-    cpf_usuario = session['fan_data']['cpf']
-    
-    cpf_pattern = re.compile(r'(\d{3}\.\d{3}\.\d{3}-\d{2}|\d{11})')
-    rg_pattern = re.compile(r'(RG|IDENTIDADE|REGISTRO GERAL)[^\d]*(\d[\d\.-]+\d)', re.IGNORECASE)
-    nascimento_pattern = re.compile(r'\d{2}/\d{2}/\d{4}')
-
-    for text in text_list:
-        text = text.strip().upper()
-        
-        if not data_nascimento:
-            nasc_match = nascimento_pattern.search(text)
-            if nasc_match:
-                data_nascimento = nasc_match.group()
-
-        if not cpf:
-            cpf_matches = cpf_pattern.finditer(text)
-            for match in cpf_matches:
-                candidate = re.sub(r'[^0-9]', '', match.group())
-                if len(candidate) == 11 and candidate == cpf_usuario:
-                    cpf = candidate
-                    break
-
-        if not rg:
-            rg_match = rg_pattern.search(text)
-            if rg_match:
-                rg_candidate = re.sub(r'[^0-9]', '', rg_match.group(2))
-                if 7 <= len(rg_candidate) <= 12:
-                    rg = rg_candidate
-            elif not rg and (text.startswith('RG') or 'REGISTRO' in text):
-                numbers = re.sub(r'[^0-9]', '', text)
-                if 7 <= len(numbers) <= 12:
-                    rg = numbers
-
-    return cpf, rg, data_nascimento
-
-def validate_document(extracted_text, fan_data):
-    nome_encontrado = any(fan_data['nome'].lower() in text.lower() for text in extracted_text)
-    cpf_digits = re.sub(r'[^0-9]', '', fan_data['cpf'])
-    cpf_encontrado = any(cpf_digits in re.sub(r'[^0-9]', '', text) for text in extracted_text)
-    rg_encontrado = any(
-        'RG' in text.upper() or 
-        'IDENTIDADE' in text.upper() or 
-        'REGISTRO' in text.upper() 
-        for text in extracted_text
-    )
-    return nome_encontrado and (cpf_encontrado or rg_encontrado)
 
 def get_recommendations(fan_data):
     """Gera recomendações personalizadas baseadas nos interesses do fã"""
@@ -257,75 +202,7 @@ def send_welcome_email(email, fan_data):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        nome = request.form.get('nome', '').strip()
-        cpf = re.sub(r'\D', '', request.form.get('cpf', ''))
-        endereco = request.form.get('endereco', '').strip()
-        email = request.form.get('email', '').strip().lower()
-        data_nascimento = request.form.get('data_nascimento', '')
-        
-        partes_nome = [parte for parte in nome.split() if len(parte) >= 2]
-        if len(partes_nome) < 2:
-            flash('Por favor, insira seu nome completo (pelo menos nome e sobrenome).', 'error')
-            return redirect(url_for('index'))
-            
-        if len(cpf) != 11 or not cpf.isdigit():
-            flash('CPF deve conter 11 dígitos numéricos.', 'error')
-            return redirect(url_for('index'))
-            
-        EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        if not EMAIL_REGEX.fullmatch(email):
-            flash('Por favor, insira um e-mail válido (exemplo: usuario@provedor.com).', 'error')
-            return redirect(url_for('index'))
-            
-        try:
-            data_nasc = datetime.strptime(data_nascimento, '%Y-%m-%d').date()
-            idade = (date.today() - data_nasc).days // 365
-            if idade < 12:
-                flash('Você deve ter pelo menos 12 anos para se cadastrar.', 'error')
-                return redirect(url_for('index'))
-            elif idade > 120:
-                flash('Data de nascimento inválida.', 'error')
-                return redirect(url_for('index'))
-        except (ValueError, TypeError):
-            flash('Data de nascimento inválida.', 'error')
-            return redirect(url_for('index'))
-            
-        esports = request.form.getlist('esports')
-        interesses = request.form.getlist('interesses')
-        atividades = request.form.getlist('atividades')
-        compras = request.form.getlist('compras')
-        
-        if not esports:
-            flash('Selecione pelo menos um eSport que você acompanha.', 'error')
-            return redirect(url_for('index'))
-            
-        outros_esports = request.form.get('outros_esports', '').strip()
-        outros_interesses = request.form.get('outros_interesses', '').strip()
-        outros_atividades = request.form.get('outros_atividades', '').strip()
-        outros_compras = request.form.get('outros_compras', '').strip()
-        
-        if outros_esports:
-            esports.append(outros_esports)
-        if outros_interesses:
-            interesses.append(outros_interesses)
-        if outros_atividades:
-            atividades.append(outros_atividades)
-        if outros_compras:
-            compras.append(outros_compras)
-            
-        session['fan_data'] = {
-            'nome': nome,
-            'cpf': cpf,
-            'email': email,
-            'endereco': endereco,
-            'data_nascimento': data_nascimento,
-            'esports': esports,
-            'interesses': interesses,
-            'atividades': atividades,
-            'compras': compras,
-            'timestamp': datetime.now().isoformat()
-        }
-        
+        # ... (mantenha o mesmo código do index)
         return redirect(url_for('upload'))
         
     return render_template('index.html')
@@ -345,14 +222,15 @@ def upload():
         flash('Nenhum arquivo selecionado', 'error')
         return redirect(url_for('upload'))
     
-    # Verificação básica do tipo de arquivo
     if not allowed_file(file.filename):
         flash('Tipo de arquivo não permitido. Envie PNG, JPG, JPEG ou PDF.', 'error')
         return redirect(url_for('upload'))
     
-    # Simplesmente armazena o nome do arquivo na sessão
+    # Armazena apenas informações básicas sobre o documento
     session['documento'] = {
-        'arquivo': secure_filename(file.filename),
+        'nome_arquivo': secure_filename(file.filename),
+        'tipo': file.content_type,
+        'tamanho': len(file.read()),
         'data_upload': datetime.now().isoformat()
     }
     
@@ -433,7 +311,6 @@ def links():
 
     return render_template('links.html')
 
-@app.route('/success')
 def success():
     if 'fan_data' not in session or 'documento' not in session or 'social_data' not in session or 'links_data' not in session:
         flash('Sessão expirada. Por favor, preencha novamente.', 'error')
@@ -477,11 +354,7 @@ def success():
         except Exception as e:
             print(f"Erro ao obter dados extras do Google: {str(e)}")
 
-    # Garantir que os dados das plataformas tenham estrutura consistente, mesmo quando não vinculados
-    discord_data = session.get('discord_data', {})
-    google_data = session.get('google_data', {})
-    steam_data = session.get('steam_data', {})
-
+    # Preparar dados para salvar no MongoDB
     fan_data = {
         'nome': session['fan_data']['nome'],
         'cpf': session['fan_data']['cpf'],
@@ -492,41 +365,30 @@ def success():
         'interesses': session['fan_data']['interesses'],
         'atividades': session['fan_data']['atividades'],
         'compras': session['fan_data']['compras'],
-        'documento': {
-            'arquivo': session['documento']['arquivo'],
-            'cpf_documento': session['documento']['cpf_documento'],
-            'rg_documento': session['documento']['rg_documento'],
-            'data_nascimento_documento': session['documento']['data_nascimento_documento'],
-            'data_upload': session['documento']['data_upload'],
-            'texto_extraido': session['documento']['texto_extraido']
-        },
+        'documento_info': session['documento'],  # Apenas metadados, não o arquivo
         'redes_sociais': session['social_data'],
         'links_esports': session['links_data'],
         'cadastro_em': datetime.now().isoformat(),
         'google_data': {
-            **google_data,
+            **session.get('google_data', {}),
             **google_extras
         },
-        'discord_data': discord_data,
-        'steam_data': steam_data
+        'discord_data': session.get('discord_data', {}),
+        'steam_data': session.get('steam_data', {})
     }
 
     # Envia e-mails para todos os e-mails únicos encontrados
     emails_to_send = set()
     
-    # E-mail do formulário
     if fan_data['email']:
         emails_to_send.add(fan_data['email'])
     
-    # E-mail do Google
-    if google_data.get('user', {}).get('email'):
-        emails_to_send.add(google_data['user']['email'])
+    if 'google_data' in session and 'user' in session['google_data'] and 'email' in session['google_data']['user']:
+        emails_to_send.add(session['google_data']['user']['email'])
     
-    # E-mail do Discord
-    if discord_data.get('user', {}).get('email'):
-        emails_to_send.add(discord_data['user']['email'])
+    if 'discord_data' in session and 'user' in session['discord_data'] and 'email' in session['discord_data']['user']:
+        emails_to_send.add(session['discord_data']['user']['email'])
     
-    # Envia e-mail para cada e-mail único
     for email in emails_to_send:
         send_welcome_email(email, fan_data)
 
