@@ -287,22 +287,53 @@ def index():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    if request.method == 'GET':
-        return render_template('upload.html')
-    
-    file = request.files.get('documento')
+    # Verifica se o usuário veio do formulário inicial
+    if 'fan_data' not in session:
+        flash('Por favor, complete o formulário inicial primeiro', 'error')
+        return redirect(url_for('index'))
 
-    if not file or file.filename.strip() == '':
-        flash('Por favor, anexe um arquivo.', 'error')
-        return redirect(url_for('upload'))
-    
-    flash('Arquivo recebido. Continuando para a próxima etapa.', 'success')
-    return redirect(url_for('social'))
+    if request.method == 'POST':
+        # Verifica se o arquivo foi enviado
+        if 'documento' not in request.files:
+            flash('Nenhum arquivo enviado', 'error')
+            return redirect(url_for('upload'))
+            
+        file = request.files['documento']
+        
+        # Verifica se um arquivo foi selecionado
+        if file.filename.strip() == '':
+            flash('Nenhum arquivo selecionado', 'error')
+            return redirect(url_for('upload'))
+            
+        # Verifica a extensão do arquivo (opcional)
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'pdf'}
+        if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            flash('Tipo de arquivo não permitido. Use PNG, JPG, JPEG ou PDF', 'error')
+            return redirect(url_for('upload'))
+        
+        # Simula o processamento (apenas para demonstração)
+        try:
+            # Aqui você poderia adicionar uma lógica simples se quisesse
+            # Mas como é só demonstração, vamos apenas continuar
+            
+            # Marca na sessão que o upload foi feito (sem salvar o arquivo)
+            session['documento_uploaded'] = True
+            
+            flash('Arquivo recebido com sucesso!', 'success')
+            return redirect(url_for('social'))
+            
+        except Exception as e:
+            print(f"Erro durante upload simulado: {str(e)}")
+            flash('Erro ao processar o arquivo', 'error')
+            return redirect(url_for('upload'))
+
+    return render_template('upload.html')
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
-    if 'fan_data' not in session or 'documento' not in session:
-        flash('Sessão expirada. Por favor, preencha novamente.', 'error')
+    # Verificação simplificada
+    if 'fan_data' not in session or not session.get('documento_uploaded'):
+        flash('Por favor, complete as etapas anteriores', 'error')
         return redirect(url_for('index'))
 
     if request.method == 'POST':
