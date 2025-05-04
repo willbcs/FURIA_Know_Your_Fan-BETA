@@ -373,6 +373,7 @@ def links():
 
     return render_template('links.html')
 
+@app.route('/success')
 def success():
     if 'fan_data' not in session or 'documento' not in session or 'social_data' not in session or 'links_data' not in session:
         flash('Sessão expirada. Por favor, preencha novamente.', 'error')
@@ -427,7 +428,7 @@ def success():
         'interesses': session['fan_data']['interesses'],
         'atividades': session['fan_data']['atividades'],
         'compras': session['fan_data']['compras'],
-        'documento_info': session['documento'],  # Apenas metadados, não o arquivo
+        #'documento_info': session['documento'],  # Apenas metadados, não o arquivo
         'redes_sociais': session['social_data'],
         'links_esports': session['links_data'],
         'cadastro_em': datetime.now().isoformat(),
