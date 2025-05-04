@@ -22,8 +22,15 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 # MongoDB
+MONGO_URI = os.getenv('MONGO_URI')
+MONGO_DB_NAME = os.getenv('MONGO_DB_NAME')
+
+if not MONGO_URI or not MONGO_DB_NAME:
+    raise ValueError("As variáveis MONGO_URI e MONGO_DB_NAME devem ser configuradas")
+
 client = MongoClient(MONGO_URI)
-db = client[MONGO_DB_NAME]
+db = client[str(MONGO_DB_NAME)]  
+
 DISCORD_CLIENT_ID = os.getenv('CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REDIRECT_URIS = [
