@@ -301,15 +301,18 @@ def upload():
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
-    if 'fan_data' not in session or 'documento' not in session:
-        flash('Sessão expirada. Por favor, preencha novamente.', 'error')
+    # Verificação robusta da sessão
+    if 'fan_data' not in session:
+        flash('Por favor, complete o formulário inicial primeiro.', 'error')
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        if not session.get('discord_data') and not session.get('google_data') and not session.get('steam_data'):
+        # Verifica se pelo menos uma conta foi vinculada
+        if not any([session.get('discord_data'), session.get('google_data'), session.get('steam_data')]):
             flash('Você deve vincular pelo menos uma conta (Discord, Google ou Steam) para continuar.', 'error')
             return redirect(url_for('social'))
 
+        # Processa as redes sociais
         twitter = request.form.get('twitter', '').strip()
         instagram = request.form.get('instagram', '').strip()
         twitch = request.form.get('twitch', '').strip()
@@ -322,6 +325,7 @@ def social():
             'youtube': f'https://youtube.com/{youtube}' if youtube else ''
         }
 
+        # Validação das URLs (opcional)
         for platform, url in social_data.items():
             if url and platform != 'twitter':
                 try:
@@ -333,9 +337,16 @@ def social():
                     flash(f'Erro ao verificar {platform.capitalize()}. Verifique o link.', 'error')
                     return redirect(url_for('social'))
 
+        # Armazena os dados e força a persistência da sessão
         session['social_data'] = social_data
-        return redirect(url_for('links'))
+        session.modified = True  # Importante para garantir que a sessão será salva
+        
+        print(f"Dados sociais salvos: {social_data}")  # Log para debug
+        print(f"Estado completo da sessão: {dict(session)}")  # Log para debug
+        
+        return redirect(url_for('links'))  # Redireciona para a próxima página CORRETAMENTE
 
+    # Se for GET, mostra o template normalmente
     return render_template('social.html')
 
 def validar_link_esports(url):
