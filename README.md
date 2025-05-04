@@ -14,7 +14,7 @@ Principais funcionalidades:
 ⚡ Versão otimizada para deploys gratuitos
 
 🔴 Alterações em relação à versão original:
-- Remoção do módulo EasyOCR para processamento de documentos (visando reduzir consumo de memória)
+- Remoção do módulo EasyOCR para processamento de documentos (visando reduzir consumo de memória) e devido a permissões especiais necessárias, a vinculação com o Google não foi permitida (Somente Discord e Steam). Em ambiente de produção com maior capacidade de memória e integração pode ser aplicado tudo isso de volta e muito mais.
 - Foco nas integrações sociais e experiência do usuário
 - Melhorias no gerenciamento de sessões
 
