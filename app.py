@@ -35,13 +35,17 @@ DISCORD_CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REDIRECT_URIS = [
     "http://127.0.0.1:5000/auth/discord/callback",
     "http://192.168.15.7:5000/auth/discord/callback",
-    "http://192.168.15.7/auth/discord/callback"
+    "http://192.168.15.7/auth/discord/callback",
+    "https://furia-know-your-fan-beta.onrender.com"
 ]
 FURIA_GUILD_ID = "700387128227659797"
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-GOOGLE_REDIRECT_URI = "http://127.0.0.1:5000/auth/google/callback"
+GOOGLE_REDIRECT_URI = [
+    "http://127.0.0.1:5000/auth/google/callback",
+     "https://furia-know-your-fan-beta.onrender.com"
+    ]
 GOOGLE_SCOPES = [
     'openid',
     'profile',
@@ -215,6 +219,10 @@ def index():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
+    if 'fan_data' not in session:
+        flash('Sessão expirada. Por favor, preencha novamente.', 'error')
+        return redirect(url_for('index'))
+
     if request.method == 'GET':
         return render_template('upload.html')
     
@@ -232,16 +240,28 @@ def upload():
         flash('Tipo de arquivo não permitido. Envie PNG, JPG, JPEG ou PDF.', 'error')
         return redirect(url_for('upload'))
     
-    # Armazena apenas informações básicas sobre o documento
-    session['documento'] = {
-        'nome_arquivo': secure_filename(file.filename),
-        'tipo': file.content_type,
-        'tamanho': len(file.read()),
-        'data_upload': datetime.now().isoformat()
-    }
+    try:
+        # Lê o conteúdo do arquivo primeiro
+        file_content = file.read()
+        
+        # Armazena apenas metadados do documento
+        session['documento'] = {
+            'nome_arquivo': secure_filename(file.filename),
+            'tipo': file.content_type,
+            'tamanho': len(file_content),
+            'data_upload': datetime.now().isoformat()
+        }
+        
+        # Garante que a sessão seja salva
+        session.modified = True
+        
+        flash('Documento recebido com sucesso!', 'success')
+        return redirect(url_for('social'))
     
-    flash('Documento recebido com sucesso!', 'success')
-    return redirect(url_for('social'))
+    except Exception as e:
+        print(f"Erro no upload: {str(e)}")
+        flash('Ocorreu um erro ao processar seu documento. Tente novamente.', 'error')
+        return redirect(url_for('upload'))
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
