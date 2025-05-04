@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from pymongo import MongoClient
 import os
 import re
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from werkzeug.utils import secure_filename
 import requests
 from googleapiclient.discovery import build
@@ -17,14 +17,8 @@ import base64
 from pathlib import Path
 
 app = Flask(__name__)
-app.config.update(
-    SECRET_KEY=os.getenv('FLASK_SECRET_KEY'),
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=1),  # Sessão dura 1 hora
-    SESSION_REFRESH_EACH_REQUEST=True
-)
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 # MongoDB
 MONGO_URI = os.getenv('MONGO_URI')
@@ -217,18 +211,13 @@ def send_welcome_email(email, fan_data):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # Configuração de sessão mais robusta
-    session.permanent = True  # Faz a sessão persistir por mais tempo
-    
     if request.method == 'POST':
-        # Coleta e limpeza dos dados do formulário
         nome = request.form.get('nome', '').strip()
         cpf = re.sub(r'\D', '', request.form.get('cpf', ''))
         endereco = request.form.get('endereco', '').strip()
         email = request.form.get('email', '').strip().lower()
         data_nascimento = request.form.get('data_nascimento', '')
         
-        # Validações (mantidas as originais)
         partes_nome = [parte for parte in nome.split() if len(parte) >= 2]
         if len(partes_nome) < 2:
             flash('Por favor, insira seu nome completo (pelo menos nome e sobrenome).', 'error')
@@ -256,7 +245,6 @@ def index():
             flash('Data de nascimento inválida.', 'error')
             return redirect(url_for('index'))
             
-        # Processamento dos campos múltiplos
         esports = request.form.getlist('esports')
         interesses = request.form.getlist('interesses')
         atividades = request.form.getlist('atividades')
@@ -266,7 +254,6 @@ def index():
             flash('Selecione pelo menos um eSport que você acompanha.', 'error')
             return redirect(url_for('index'))
             
-        # Campos "outros" adicionais
         outros_esports = request.form.get('outros_esports', '').strip()
         outros_interesses = request.form.get('outros_interesses', '').strip()
         outros_atividades = request.form.get('outros_atividades', '').strip()
@@ -281,7 +268,6 @@ def index():
         if outros_compras:
             compras.append(outros_compras)
             
-        # Armazenamento na sessão com garantia de persistência
         session['fan_data'] = {
             'nome': nome,
             'cpf': cpf,
@@ -295,63 +281,28 @@ def index():
             'timestamp': datetime.now().isoformat()
         }
         
-        # Força a gravação da sessão antes do redirecionamento
-        session.modified = True
-        print(f"Sessão após form: {dict(session)}")  # Log para debug
-        
         return redirect(url_for('upload'))
         
     return render_template('index.html')
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    # Verifica se o usuário veio do formulário inicial
-    if 'fan_data' not in session:
-        flash('Por favor, complete o formulário inicial primeiro', 'error')
-        return redirect(url_for('index'))
+    if request.method == 'GET':
+        return render_template('upload.html')
+    
+    file = request.files.get('documento')
 
-    if request.method == 'POST':
-        # Verifica se o arquivo foi enviado
-        if 'documento' not in request.files:
-            flash('Nenhum arquivo enviado', 'error')
-            return redirect(url_for('upload'))
-            
-        file = request.files['documento']
-        
-        # Verifica se um arquivo foi selecionado
-        if file.filename.strip() == '':
-            flash('Nenhum arquivo selecionado', 'error')
-            return redirect(url_for('upload'))
-            
-        # Verifica a extensão do arquivo (opcional)
-        allowed_extensions = {'png', 'jpg', 'jpeg', 'pdf'}
-        if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
-            flash('Tipo de arquivo não permitido. Use PNG, JPG, JPEG ou PDF', 'error')
-            return redirect(url_for('upload'))
-        
-        # Simula o processamento (apenas para demonstração)
-        try:
-            # Aqui você poderia adicionar uma lógica simples se quisesse
-            # Mas como é só demonstração, vamos apenas continuar
-            
-            # Marca na sessão que o upload foi feito (sem salvar o arquivo)
-            session['documento_uploaded'] = True
-            
-            flash('Arquivo recebido com sucesso!', 'success')
-            return redirect(url_for('social'))
-            
-        except Exception as e:
-            print(f"Erro durante upload simulado: {str(e)}")
-            flash('Erro ao processar o arquivo', 'error')
-            return redirect(url_for('upload'))
-
-    return render_template('upload.html')
+    if not file or file.filename.strip() == '':
+        flash('Por favor, anexe um arquivo.', 'error')
+        return redirect(url_for('upload'))
+    
+    flash('Arquivo recebido. Continuando para a próxima etapa.', 'success')
+    return redirect(url_for('social'))
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
-    # Verificação simplificada
-    if 'fan_data' not in session or not session.get('documento_uploaded'):
-        flash('Por favor, complete as etapas anteriores', 'error')
+    if 'fan_data' not in session or 'documento' not in session:
+        flash('Sessão expirada. Por favor, preencha novamente.', 'error')
         return redirect(url_for('index'))
 
     if request.method == 'POST':
