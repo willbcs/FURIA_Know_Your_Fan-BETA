@@ -330,59 +330,24 @@ def index():
         
     return render_template('index.html')
 
-@app.route('/upload', methods=['GET', 'POST'])
+@app.route('/upload', methods=['POST'])
 def upload():
-    if 'fan_data' not in session:
-        flash('Por favor, complete seus dados básicos primeiro.', 'error')
-        return redirect(url_for('index'))
-
-    if request.method == 'POST':
-        if 'documento' not in request.files:
-            flash('Nenhum arquivo enviado.', 'error')
-            return redirect(url_for('upload'))
-
-        file = request.files['documento']
-
-        if file.filename == '' or not allowed_file(file.filename):
-            flash('Arquivo inválido. Envie PNG, JPG, JPEG ou PDF.', 'error')
-            return redirect(url_for('upload'))
-
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        file.save(filepath)
-
-        try:
-            results = reader.readtext(filepath)
-            texto_extraido = [text for (_, text, _) in results]
-            print("Texto extraído:", texto_extraido)
-
-            if not validate_document(texto_extraido, session['fan_data']):
-                os.remove(filepath)
-                flash('Os dados do documento não correspondem aos informados. Verifique seu documento.', 'error')
-                return redirect(url_for('upload'))
-
-            cpf_doc, rg_doc, nascimento_doc = extract_document_info(texto_extraido)
-
-            session['documento'] = {
-                'arquivo': filename,
-                'texto_extraido': texto_extraido,
-                'cpf_documento': cpf_doc,
-                'rg_documento': rg_doc,
-                'data_nascimento_documento': nascimento_doc,
-                'data_upload': datetime.now().isoformat()
-            }
-
-            flash('Documento validado com sucesso!', 'success')
-            return redirect(url_for('social'))
-
-        except Exception as e:
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            flash('Erro ao processar o documento. Verifique se ele é uma imagem clara (PNG, JPG, JPEG) ou PDF válido.', 'error')
-            return redirect(url_for('upload'))
-
-    return render_template('upload.html')
+    if 'documento' not in request.files:
+        flash('Nenhum arquivo enviado', 'error')
+        return redirect(url_for('upload'))
+    
+    file = request.files['documento']
+    
+    # Verificação básica do arquivo
+    if file.filename == '':
+        flash('Nenhum arquivo selecionado', 'error')
+        return redirect(url_for('upload'))
+    
+    # Simula a validação - aceita qualquer arquivo
+    filename = secure_filename(file.filename)
+    session['documento_uploaded'] = filename
+    flash('Documento recebido com sucesso!', 'success')
+    return redirect(url_for('next_step'))
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
@@ -797,4 +762,9 @@ def steam_callback():
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
+    
+    # Configuração para desenvolvimento local
     app.run(host='0.0.0.0', port=5002, debug=True)
+else:
+    # Configuração para produção no Render
+    application = app
