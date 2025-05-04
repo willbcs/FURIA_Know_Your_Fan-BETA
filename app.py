@@ -64,11 +64,11 @@ GOOGLE_SCOPES = [
     'openid',
     'profile',
     'email',
-    'https://www.googleapis.com/auth/user.birthday.read',
-    'https://www.googleapis.com/auth/user.gender.read',
-    'https://www.googleapis.com/auth/user.phonenumbers.read',
-    'https://www.googleapis.com/auth/user.addresses.read',
-    'https://www.googleapis.com/auth/youtube.readonly'
+    #'https://www.googleapis.com/auth/user.birthday.read',
+    #'https://www.googleapis.com/auth/user.gender.read',
+    #'https://www.googleapis.com/auth/user.phonenumbers.read',
+    #'https://www.googleapis.com/auth/user.addresses.read',
+    #'https://www.googleapis.com/auth/youtube.readonly'
 ]
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 
