@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from pymongo import MongoClient
 import os
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 import requests
 from googleapiclient.discovery import build
@@ -17,6 +17,9 @@ import base64
 from pathlib import Path
 
 app = Flask(__name__)
+
+app.permanent_session_lifetime = timedelta(days=31)
+session.permanent = True
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
@@ -372,7 +375,7 @@ def validar_link_esports(url):
 
 @app.route('/links', methods=['GET', 'POST'])
 def links():
-    if 'fan_data' not in session or 'documento' not in session or 'social_data' not in session:
+    if 'fan_data' not in session or 'social_data' not in session:
         flash('Sessão expirada. Por favor, preencha novamente.', 'error')
         return redirect(url_for('index'))
 
