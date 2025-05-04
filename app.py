@@ -17,9 +17,12 @@ import base64
 from pathlib import Path
 
 app = Flask(__name__)
-
+app.config.update(
+    SESSION_COOKIE_SECURE=True,  # obrigatório em produção com HTTPS
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_HTTPONLY=True
+)
 app.permanent_session_lifetime = timedelta(days=31)
-session.permanent = True
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
@@ -285,7 +288,8 @@ def index():
         }
         
         return redirect(url_for('upload'))
-        
+    
+    session.permanent = True
     return render_template('index.html')
 
 @app.route('/upload', methods=['GET', 'POST'])
