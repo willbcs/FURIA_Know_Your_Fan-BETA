@@ -330,24 +330,34 @@ def index():
         
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 def upload():
+    if request.method == 'GET':
+        return render_template('upload.html')
+    
     if 'documento' not in request.files:
         flash('Nenhum arquivo enviado', 'error')
         return redirect(url_for('upload'))
     
     file = request.files['documento']
     
-    # Verificação básica do arquivo
     if file.filename == '':
         flash('Nenhum arquivo selecionado', 'error')
         return redirect(url_for('upload'))
     
-    # Simula a validação - aceita qualquer arquivo
-    filename = secure_filename(file.filename)
-    session['documento_uploaded'] = filename
+    # Verificação básica do tipo de arquivo
+    if not allowed_file(file.filename):
+        flash('Tipo de arquivo não permitido. Envie PNG, JPG, JPEG ou PDF.', 'error')
+        return redirect(url_for('upload'))
+    
+    # Simplesmente armazena o nome do arquivo na sessão
+    session['documento'] = {
+        'arquivo': secure_filename(file.filename),
+        'data_upload': datetime.now().isoformat()
+    }
+    
     flash('Documento recebido com sucesso!', 'success')
-    return redirect(url_for('next_step'))
+    return redirect(url_for('social'))
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
@@ -762,9 +772,4 @@ def steam_callback():
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
-    
-    # Configuração para desenvolvimento local
-    app.run(host='0.0.0.0', port=5000, debug=True)
-else:
-    # Configuração para produção no Render
-    application = app
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
