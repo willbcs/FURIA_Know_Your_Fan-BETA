@@ -287,23 +287,33 @@ def index():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    if request.method == 'GET':
-        return render_template('upload.html')
+    # Verificar se há dados na sessão
+    if 'fan_data' not in session:
+        flash('Sessão expirada. Por favor, preencha o formulário novamente.', 'error')
+        return redirect(url_for('index'))
     
-    file = request.files.get('documento')
+    if request.method == 'POST':
+        file = request.files.get('documento')
 
-    if not file or file.filename.strip() == '':
-        flash('Por favor, anexe um arquivo.', 'error')
-        return redirect(url_for('upload'))
-    
-    flash('Arquivo recebido. Continuando para a próxima etapa.', 'success')
-    return redirect(url_for('social'))
+        if not file or file.filename.strip() == '':
+            flash('Por favor, anexe um arquivo.', 'error')
+            return redirect(url_for('upload'))
+        
+        # Aqui você pode processar o arquivo se necessário
+        # Por enquanto, apenas marcamos que o upload foi feito
+        session['documento_uploaded'] = True
+        session.modified = True  # Força a atualização da sessão
+        
+        flash('Arquivo recebido. Continuando para a próxima etapa.', 'success')
+        return redirect(url_for('social'))
+        
+    return render_template('upload.html')
 
 @app.route('/social', methods=['GET', 'POST'])
 def social():
     # Verificação robusta da sessão
-    if 'fan_data' not in session:
-        flash('Por favor, complete o formulário inicial primeiro.', 'error')
+    if 'fan_data' not in session or 'documento_uploaded' not in session:
+        flash('Por favor, complete as etapas anteriores primeiro.', 'error')
         return redirect(url_for('index'))
 
     if request.method == 'POST':
