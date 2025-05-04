@@ -307,7 +307,7 @@ def upload():
         session['documento_uploaded'] = True
         session.modified = True
         
-        flash('Arquivo recebido. Continuando para a próxima etapa.', 'success')
+        flash('Versão Beta! Aqui o seu documento srá validado!', 'success')
         return redirect(url_for('social'))
         
     return render_template('upload.html')
