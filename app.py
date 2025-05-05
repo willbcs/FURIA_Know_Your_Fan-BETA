@@ -50,7 +50,7 @@ REDIRECT_URIS = [
     "http://127.0.0.1:5000/auth/discord/callback",
     "http://192.168.15.7:5000/auth/discord/callback",
     "http://192.168.15.7/auth/discord/callback",
-    "https://furia-know-your-fan-beta.onrender.com"
+    "https://furia-know-your-fan-beta.onrender.com/auth/discord/callback"
 ]
 FURIA_GUILD_ID = "700387128227659797"
 
@@ -58,17 +58,17 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = [
     "http://127.0.0.1:5000/auth/google/callback",
-     "https://furia-know-your-fan-beta.onrender.com"
+     "https://furia-know-your-fan-beta.onrender.com/auth/google/callback"
     ]
 GOOGLE_SCOPES = [
     'openid',
     'profile',
     'email',
-    #'https://www.googleapis.com/auth/user.birthday.read',
-    #'https://www.googleapis.com/auth/user.gender.read',
-    #'https://www.googleapis.com/auth/user.phonenumbers.read',
-    #'https://www.googleapis.com/auth/user.addresses.read',
-    #'https://www.googleapis.com/auth/youtube.readonly'
+    'https://www.googleapis.com/auth/user.birthday.read',
+    'https://www.googleapis.com/auth/user.gender.read',
+    'https://www.googleapis.com/auth/user.phonenumbers.read',
+    'https://www.googleapis.com/auth/user.addresses.read',
+    'https://www.googleapis.com/auth/youtube.readonly'
 ]
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 
