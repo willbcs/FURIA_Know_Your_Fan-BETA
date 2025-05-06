@@ -1,4 +1,3 @@
-markdown
 🚀 FURIA - KNOW YOUR FAN (BETA) - README
 🇧🇷 Português
 
